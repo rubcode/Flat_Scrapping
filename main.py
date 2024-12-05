@@ -9,9 +9,14 @@ from bs4 import BeautifulSoup
 import time
 from chat import *
 
-browser = uc.Chrome()
 
-url = "https://propiedades.com/portales/departamentos-renta"
+path = "Outputs/flats.csv"
+sentFlats = pd.read_csv(path,header='infer',delimiter=",")
+print(len(sentFlats))
+
+browser = uc.Chrome()
+suburn = "portales"
+url = f"https://propiedades.com/{suburn}/departamentos-renta"
 browser.get(url)
 browser.implicitly_wait(10)
 html = browser.page_source
@@ -19,12 +24,13 @@ soup = BeautifulSoup(html, 'html.parser')
 countItems = int(soup.find_all(class_='crfbvO')[0].text.split("de")[1].split(" ")[1])
 page = 1
 flatsData = []
+
 print(f"El sitio web tiene {countItems} páginas")
 print("******************")
 while (page <= countItems):
     print(f"Scrapping Página {page}")
     print("******************")
-    urlPage = f"https://propiedades.com/portales/departamentos-renta?pagina={page}"
+    urlPage = f"https://propiedades.com/{suburn}/departamentos-renta?pagina={page}"
     browser.get(urlPage)
     browser.implicitly_wait(10)
     html = browser.page_source
@@ -66,7 +72,11 @@ while (page <= countItems):
     time.sleep(1)
 
 data = pd.DataFrame(flatsData)
-messages = data["url"]
-for message in messages:
-    sendChat(message)
-data.to_csv("Outputs/flats.csv",header=True,index=False)
+data['is_sent'] = data['id'].apply(lambda x: 0 if not sentFlats['id'].isin([x]).any() else 1)
+data = data[data['is_sent'] == 1]
+
+for index,row in data.iterrows():
+    message = str(row.url)
+    sendChat(url)
+sentFlats = pd.concat([sentFlats, data], ignore_index=True)
+sentFlats.to_csv("Outputs/flats.csv",header=True,index=False)
