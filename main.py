@@ -12,10 +12,11 @@ from chat import *
 
 path = "Outputs/flats.csv"
 sentFlats = pd.read_csv(path,header='infer',delimiter=",")
+sentFlats["id"] = sentFlats["id"].astype(int)
 print(len(sentFlats))
 
 browser = uc.Chrome()
-suburn = "portales"
+suburn = "albert-df"
 url = f"https://propiedades.com/{suburn}/departamentos-renta"
 browser.get(url)
 browser.implicitly_wait(10)
@@ -43,6 +44,7 @@ while (page <= countItems):
         if link:
             url = link.get("href")
         content = flat.text.replace("USD","MXN")
+        content = flat.text.replace("Ver anunciantes","")
         price = content.split("DepartamentoRenta")
         content = price[1]
         price = price[1].split(" MXN")
@@ -72,11 +74,16 @@ while (page <= countItems):
     time.sleep(1)
 
 data = pd.DataFrame(flatsData)
-data['is_sent'] = data['id'].apply(lambda x: 0 if not sentFlats['id'].isin([x]).any() else 1)
-data = data[data['is_sent'] == 1]
+data["id"] = data["id"].astype(int)
+print(len(data))
+data['is_sent'] = data['id'].apply(lambda x: 1 if not sentFlats['id'].isin([x]).any() else 0)
 
-for index,row in data.iterrows():
-    message = str(row.url)
-    sendChat(url)
+data = data[data['is_sent'] == 1]
+print(len(data))
+messages = data["url"]
+
+
+for message in messages:
+    sendChat(message)
 sentFlats = pd.concat([sentFlats, data], ignore_index=True)
 sentFlats.to_csv("Outputs/flats.csv",header=True,index=False)
